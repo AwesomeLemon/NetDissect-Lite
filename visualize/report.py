@@ -34,7 +34,11 @@ def generate_html_summary(ds, layer, maxfeature=None, features=None, thresholds=
         print('Sorting units by score.')
     if imsize is None:
         imsize = settings.IMG_SIZE
-    top = np.argsort(maxfeature, 0)[:-1 - settings.TOPN:-1, :].transpose()
+    if settings.LOOK_AT_MAX:
+        top = np.argsort(maxfeature, 0)[:-1 - settings.TOPN:-1, :].transpose()
+    else:
+        top = np.argsort(maxfeature, 0)[:settings.TOPN-1, :].transpose()
+
     ed.ensure_dir('html','image')
     html = [html_prefix]
     rendered_order = []
@@ -65,8 +69,8 @@ def generate_html_summary(ds, layer, maxfeature=None, features=None, thresholds=
 
     if gridwidth is None:
         gridname = ''
-        gridwidth = settings.TOPN
-        gridheight = 1
+        gridwidth = settings.TOPN // 4
+        gridheight = 4
     else:
         gridname = '-%d' % gridwidth
         gridheight = (settings.TOPN + gridwidth - 1) // gridwidth
@@ -93,7 +97,10 @@ def generate_html_summary(ds, layer, maxfeature=None, features=None, thresholds=
                 col = x % gridwidth
                 image = imread(ds.filename(index))
                 mask = imresize(features[index][unit], image.shape[:2], mode='F')
-                mask = mask > thresholds[unit]
+                if settings.LOOK_AT_MAX:
+                    mask = mask > thresholds[unit]
+                else:
+                    mask = mask < thresholds[unit]
                 vis = (mask[:, :, numpy.newaxis] * 0.8 + 0.2) * image
                 if vis.shape[:2] != (imsize, imsize):
                     vis = imresize(vis, (imsize, imsize))

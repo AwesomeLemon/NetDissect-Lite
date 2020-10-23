@@ -12,6 +12,7 @@ from scipy.misc import imread
 from multiprocessing import Pool, cpu_count
 from multiprocessing.pool import ThreadPool
 from scipy.ndimage.interpolation import zoom
+import skimage.transform
 
 
 def load_csv(filename, readfields=None):
@@ -689,8 +690,15 @@ def normalize_image(rgb_image, bgr_mean):
     if (img.ndim == 2):
         img = numpy.repeat(img[:,:,None], 3, axis = 2)
     img = img[:,:,::-1]
+    if settings.MY_MODEL_CIFAR:
+        bgr_mean = [0.4465 * 255, 0.4822 * 255, 0.4914 * 255]
     if bgr_mean is not None:
         img -= bgr_mean
+    if settings.MY_MODEL_CIFAR:
+        stds_bgr = [0.2010, 0.1994, 0.2023]
+        for channel in range(3):
+            img[:, :, channel] /= stds_bgr[channel]
+        img = skimage.transform.resize(img, (32, 32))
     img = img.transpose((2,0,1))
     return img
 

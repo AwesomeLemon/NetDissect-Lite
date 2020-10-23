@@ -13,8 +13,10 @@ from loader.data_loader import load_csv
 from loader.data_loader import SegmentationData, SegmentationPrefetcher
 
 features_blobs = []
-def hook_feature(module, input, output):
+def hook_feature_output(module, input, output):
     features_blobs.append(output.data.cpu().numpy())
+def hook_feature_input(module, input, output):
+    features_blobs.append(input[0].data.cpu().numpy())
 
 
 class FeatureOperator:
@@ -60,15 +62,19 @@ class FeatureOperator:
             batch_size = len(input)
             print('extracting feature from batch %d / %d' % (batch_idx+1, num_batches))
             input = torch.from_numpy(input[:, ::-1, :, :].copy())
-            input.div_(255.0 * 0.224)
+            if not settings.MY_MODEL_CIFAR:
+                input.div_(255.0 * 0.224)
+            else:
+                input.div_(255.0)
+
             if settings.GPU:
                 input = input.cuda()
             input_var = V(input,volatile=True)
             logit = model.forward(input_var)
-            while np.isnan(logit.data.cpu().max()):
-                print("nan") #which I have no idea why it will happen
-                del features_blobs[:]
-                logit = model.forward(input_var)
+            # while np.isnan(logit.data.cpu().max()):
+            #     print("nan") #which I have no idea why it will happen
+            #     del features_blobs[:]
+            #     logit = model.forward(input_var)
             if maxfeatures[0] is None:
                 # initialize the feature variable
                 for i, feat_batch in enumerate(features_blobs):
@@ -93,11 +99,28 @@ class FeatureOperator:
             for i, feat_batch in enumerate(features_blobs):
                 if len(feat_batch.shape) == 4:
                     wholefeatures[i][start_idx:end_idx] = feat_batch
-                    maxfeatures[i][start_idx:end_idx] = np.max(np.max(feat_batch,3),2)
+                    if settings.LOOK_AT_MAX:
+                        maxfeatures[i][start_idx:end_idx] = np.max(np.max(feat_batch,3),2)
+                        # maxfeatures[i][start_idx:end_idx] = np.mean(np.mean(feat_batch,3),2)
+                    else:
+                        if False:
+                            mask = feat_batch < 1e-5
+                            feat_batch_masked_meaned = np.mean(feat_batch[mask])
+                            if np.isnan(feat_batch_masked_meaned):
+                                res = 1000
+                            else:
+                                res = feat_batch_masked_meaned
+                            maxfeatures[i][start_idx:end_idx] = res
+                        else:
+                            maxfeatures[i][start_idx:end_idx] = np.min(np.min(feat_batch,3),2)#np.mean(np.mean(feat_batch,3),2)
                 elif len(feat_batch.shape) == 3:
-                    maxfeatures[i][start_idx:end_idx] = np.max(feat_batch, 2)
+                    if settings.LOOK_AT_MAX:
+                        maxfeatures[i][start_idx:end_idx] = np.max(feat_batch, 2)
+                    else:
+                        raise NotImplementedError()
                 elif len(feat_batch.shape) == 2:
                     maxfeatures[i][start_idx:end_idx] = feat_batch
+                    raise NotImplementedError()
         if len(feat_batch.shape) == 2:
             wholefeatures = maxfeatures
         return wholefeatures,maxfeatures
@@ -120,7 +143,14 @@ class FeatureOperator:
             batch = features[i:i + batch_size]
             batch = np.transpose(batch, axes=(0, 2, 3, 1)).reshape(-1, features.shape[1])
             quant.add(batch)
-        ret = quant.readout(1000)[:, int(1000 * (1-settings.QUANTILE)-1)]
+        if settings.LOOK_AT_MAX:
+            ret = quant.readout(1000)[:, int(1000 * (1-settings.QUANTILE)-1)]
+        else:
+            ret = quant.readout(1000)[:, int(1000 * settings.QUANTILE)]
+            # x = quant.readout(1000)
+            # x[x == 0] = 1000
+            # ret = x.min(axis=1)
+            # ret[:] = 1e-8#0.00001
         if savepath:
             np.save(qtpath, ret)
         return ret
@@ -170,11 +200,19 @@ class FeatureOperator:
 
                 for unit_id in range(units):
                     feature_map = features[img_index][unit_id]
-                    if feature_map.max() > threshold[unit_id]:
+                    if settings.LOOK_AT_MAX:
+                        feature_map_cond = feature_map.max() > threshold[unit_id]
+                        index_cond = lambda mask: np.argwhere(mask > threshold[unit_id])
+                    else:
+                        feature_map_cond = feature_map.min() < threshold[unit_id]
+                        index_cond = lambda mask: np.argwhere(mask < threshold[unit_id])
+
+
+                    if feature_map_cond:
                         mask = imresize(feature_map, (concept_map['sh'], concept_map['sw']), mode='F')
                         #reduction = int(round(settings.IMG_SIZE / float(concept_map['sh'])))
                         #mask = upsample.upsampleL(fieldmap, feature_map, shape=(concept_map['sh'], concept_map['sw']), reduction=reduction)
-                        indexes = np.argwhere(mask > threshold[unit_id])
+                        indexes = index_cond(mask)
 
                         tally_units[unit_id] += len(indexes)
                         if len(pixels) > 0:
