@@ -1,22 +1,22 @@
 from feature_operation import hook_feature_output, hook_feature_input
 ######### global settings  #########
 GPU = True                                  # running on GPU is highly suggested
-TEST_MODE = True                           # turning on the testmode means the code will run on a small dataset.
+TEST_MODE = False                           # turning on the testmode means the code will run on a small dataset.
 CLEAN = False                               # set to "True" if you want to clean the temporary large files after generating result
-MODEL = 'resnet18'#'resnet50_mish'#'shufflenet_v2_x1_0'#'wide_resnet50_2'#'vgg19'                          # model arch: resnet18, alexnet, resnet50, densenet161
+MODEL = 'resnet18'#'mobilenet_v2'#'resnet50_mish'#'shufflenet_v2_x1_0'#'wide_resnet50_2'#'vgg19'                          # model arch: resnet18, alexnet, resnet50, densenet161
 DATASET = 'imagenet'# 'places365'#                      # model trained on: places365 or imagenet
 QUANTILE = 0.005                          # the threshold used for activation
 SEG_THRESHOLD = 0.04                        # the threshold used for visualization
 SCORE_THRESHOLD = 0.04                      # the threshold used for IoU score (in HTML file)
 TOPN = 20                                   # to show top N image with highest activation for each unit
 PARALLEL = 2                               # how many process is used for tallying (Experiments show that 1 is the fastest)
-CATAGORIES = ["object", "part","scene"] #"color","texture" concept categories that are chosen to detect: "object", "part", "scene", "material", "texture", "color"
+CATAGORIES = ["object", "part","scene", "color","texture"] #"color","texture" concept categories that are chosen to detect: "object", "part", "scene", "material", "texture", "color"
 OUTPUT_FOLDER = "result/pytorch_"+MODEL+"_"+DATASET # result will be stored in this folder
-OUTPUT_FOLDER += '_bn_max_42'
-LOOK_AT_MAX = True
+OUTPUT_FOLDER += '_66'
+LOOK_AT_MAX = False
 MY_MODEL_CIFAR = False
 MY_MODEL_IMAGENETTE = False
-HOOK_FN = hook_feature_output#hook_feature_input
+HOOK_FN = hook_feature_input#hook_feature_output#
 
 ########### sub settings ###########
 # In most of the case, you don't have to change them.
@@ -46,7 +46,7 @@ if DATASET == 'places365':
 elif DATASET == 'imagenet':
     NUM_CLASSES = 1000
 if MODEL == 'resnet18':
-    FEATURE_NAMES = ['layer4.1.bn1']#'layer4.1.relu2'
+    FEATURE_NAMES = ['layer1.0.relu2']#['layer3.1.relu2']#['layer1.0']#['layer4.1.relu2']#
     if DATASET == 'places365':
         MODEL_FILE = 'zoo/resnet18_places365.pth.tar'
         MODEL_PARALLEL = True
@@ -83,6 +83,10 @@ elif 'resnet50_mish' in MODEL:
     FEATURE_NAMES = ['layer4']
     MODEL_FILE = 'zoo/RS50_ACT_model_best.pth.tar'
     MODEL_PARALLEL = True
+elif 'mobilenet_v2' in MODEL:
+    FEATURE_NAMES = ['features']
+    MODEL_FILE = None
+    MODEL_PARALLEL = False
 
 # if TEST_MODE:
 #     WORKERS = 1

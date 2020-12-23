@@ -149,7 +149,7 @@ class FeatureOperator:
             ret = quant.readout(1000)[:, int(1000 * settings.QUANTILE)]
             # x = quant.readout(1000)
             # x[x == 0] = 1000
-            # ret = x.min(axis=1)
+            # ret = x.min(axis=1) / 32
             # ret[:] = 1e-8#0.00001
         if savepath:
             np.save(qtpath, ret)
