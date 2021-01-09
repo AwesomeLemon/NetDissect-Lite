@@ -37,7 +37,32 @@ def generate_html_summary(ds, layer, maxfeature=None, features=None, thresholds=
     if settings.LOOK_AT_MAX:
         top = np.argsort(maxfeature, 0)[:-1 - settings.TOPN:-1, :].transpose()
     else:
-        top = np.argsort(maxfeature, 0)[:settings.TOPN-1, :].transpose()
+        if True:
+            top = np.argsort(maxfeature, 0)[:settings.TOPN, :].transpose()
+        else:
+            # top[unit] contains list of indices of images that are representative
+            # idea for sorting by area: create "maxfeature" here based on mask area
+            mask_area = np.zeros_like(maxfeature)
+            n_images, n_neurons = maxfeature.shape
+            # for image_ind in range(n_images):
+            #     print(image_ind)
+            #     for neuron_ind in range(n_neurons):
+            #         cur_features = features[image_ind][neuron_ind]
+            #         mask = cur_features < thresholds[neuron_ind]
+            #         mask_area[image_ind, neuron_ind] = np.sum(mask)
+
+            for neuron_ind in range(n_neurons):
+                print(neuron_ind)
+                cur_features = features[:, neuron_ind]
+                cur_masks = cur_features < thresholds[neuron_ind]
+                mask_sums = np.sum(cur_masks, axis=(-2, -1))
+                mask_area[:, neuron_ind] = mask_sums
+                # for image_ind in range(n_images):
+                #     mask = cur_masks[image_ind]
+                #     mask_area[image_ind, neuron_ind] = np.sum(mask)
+
+            top = np.argsort(mask_area, 0)[:-1 - settings.TOPN:-1, :].transpose()
+
 
     ed.ensure_dir('html','image')
     html = [html_prefix]
@@ -69,8 +94,8 @@ def generate_html_summary(ds, layer, maxfeature=None, features=None, thresholds=
 
     if gridwidth is None:
         gridname = ''
-        gridwidth = settings.TOPN // 4
-        gridheight = 4
+        gridwidth = 3#settings.TOPN // 4
+        gridheight = 3#4
     else:
         gridname = '-%d' % gridwidth
         gridheight = (settings.TOPN + gridwidth - 1) // gridwidth

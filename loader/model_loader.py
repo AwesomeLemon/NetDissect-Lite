@@ -7,10 +7,14 @@ import torchvision
 from loader import binmatr2_multi_faces_resnet
 from loader import binmatr2_multi_faces_resnet_NEW
 from loader.resnet import ResidualNet
+from efficientnet_pytorch import EfficientNet
 
 def loadmodel():
     if settings.MODEL_FILE is None:
-        model = torchvision.models.__dict__[settings.MODEL](pretrained=True)
+        if settings.MODEL == 'efficientnet-b3':
+            model = EfficientNet.from_pretrained('efficientnet-b3').cuda()
+        else:
+            model = torchvision.models.__dict__[settings.MODEL](pretrained=True)
         print('loaded pretrained model')
     else:
         if not (settings.MY_MODEL_CIFAR or settings.MY_MODEL_IMAGENETTE):

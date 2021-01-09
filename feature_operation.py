@@ -112,7 +112,7 @@ class FeatureOperator:
                                 res = feat_batch_masked_meaned
                             maxfeatures[i][start_idx:end_idx] = res
                         else:
-                            maxfeatures[i][start_idx:end_idx] = np.min(np.min(feat_batch,3),2)#np.mean(np.mean(feat_batch,3),2)
+                            maxfeatures[i][start_idx:end_idx] = np.min(np.min(feat_batch,3),2)#np.mean(feat_batch, axis=(2, 3))#
                 elif len(feat_batch.shape) == 3:
                     if settings.LOOK_AT_MAX:
                         maxfeatures[i][start_idx:end_idx] = np.max(feat_batch, 2)
